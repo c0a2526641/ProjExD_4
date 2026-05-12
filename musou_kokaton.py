@@ -285,6 +285,32 @@ class Life:
             draw_x=x-(i*self.image.get_width())
             screen.blit(self.image,(draw_x,y))
 
+class Gravity(pg.sprite.Sprite):
+    """
+    重力場に関するクラス
+    """
+    def __init__(self, life: int):
+        """
+        爆弾と敵機を爆発させる重力場を生成する
+        引数 life：爆発時間
+        """
+        super().__init__()
+        self.life = life
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        pg.draw.rect(self.image, (0, 0, 0), (100, 100, 100, 100))
+        self.image.set_alpha(120)
+        self.rect = self.image.get_rect()
+
+    def update(self, screen: pg.Surface):
+        """
+        爆発時間を1減算して0未満になれば重力場を終了する
+        """
+        screen.blit(self.image, self.rect)
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
+
+
 def main():
     pg.display.set_caption("真！こうかとん無双")
     screen = pg.display.set_mode((WIDTH, HEIGHT))
@@ -297,6 +323,7 @@ def main():
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
     life = Life(3)
+    gravi = pg.sprite.Group()
 
     tmr = 0
     clock = pg.time.Clock()
@@ -307,6 +334,9 @@ def main():
                 return 0
             if event.type == pg.KEYDOWN and event.key == pg.K_SPACE:
                 beams.add(Beam(bird))
+            if event.type == pg.KEYDOWN and event.key == pg.K_RETURN and score.value >= 200:
+                score.value -= 200
+                gravi.add(Gravity(400))
         screen.blit(bg_img, [0, 0])
 
         if tmr%200 == 0:  # 200フレームに1回，敵機を出現させる
@@ -331,7 +361,6 @@ def main():
             if bird.state == "invincible":
                 exps.add(Explosion(bomb, 50))  # 爆発エフェクト
                 score.value += 1  # 1点アップ
-
             else:
                 life.num-=1 #　衝突したらライフが一つ減る
                 bird.change_img(8, screen)  # こうかとん悲しみエフェクト
@@ -342,6 +371,14 @@ def main():
 
                 if life.num<1:
                     return
+        
+        for grav in pg.sprite.groupcollide(bombs, gravi, True, False).keys(): #爆弾と当たった重力場リスト
+            exps.add(Explosion(grav, 50))
+            score.value += 1
+
+        for grav in pg.sprite.groupcollide(emys, gravi, True, False).keys(): #敵機と当たった重力場リスト
+            exps.add(Explosion(grav, 50))
+            score.value += 10
 
         bird.update(key_lst, screen, score)
         beams.update()
@@ -350,6 +387,8 @@ def main():
         emys.draw(screen)
         bombs.update()
         bombs.draw(screen)
+        gravi.update(screen)
+        gravi.draw(screen)
         exps.update()
         exps.draw(screen)
         score.update(screen)
